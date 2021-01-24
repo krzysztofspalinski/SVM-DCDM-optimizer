@@ -1,4 +1,7 @@
 import numpy as np
+from sklearn import datasets
+
+from dcdm import DCDM
 
 
 class Model:
@@ -14,10 +17,11 @@ class Model:
         y_hat = np.zeros_like(y_hat_proba)
         y_hat[y_hat_proba > 0] = 1
         y_hat[y_hat_proba <= 0] = -1
-        return y_hat
+        return y_hat.ravel()
 
-    def train(self, X, optimizer):
-        pass
+    def fit(self, X, y, optimizer=DCDM):
+        opt = optimizer()
+        opt.optimize(self, X, y)
 
     def compute_gradient(self, X, y):
         loss = self.compute_loss(X, y)
@@ -27,7 +31,7 @@ class Model:
 
     def compute_loss(self, X, y):
         loss = np.maximum(
-            y * np.matmul(X, self.w) + (-1),
+            1 - y * np.matmul(X, self.w),
             0
         )
         return loss
@@ -40,4 +44,4 @@ class Model:
         if self.w is not None and self.w.shape[0] == m:
             return
         else:
-            self.w = np.random.normal((m, 1))
+            self.w = np.zeros((m, 1))
