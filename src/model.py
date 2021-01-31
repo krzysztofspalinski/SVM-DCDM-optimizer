@@ -9,6 +9,9 @@ from sklearn.model_selection import train_test_split
 
 from dcdm import DCDM
 from optimizer import Optimizer
+import gc
+
+from utils import Capturing, process_output
 
 OPTIMIZERS = [DCDM, 'cvxpy', 'cvxopt', 'quadprog']
 
@@ -34,8 +37,7 @@ class Model:
             m, n = X.shape
             y = y.reshape(-1, 1) * 1.
             X_dash = y * X
-            H = np.dot(X_dash, X_dash.T) * 1.
-            P = H
+            P = np.dot(X_dash, X_dash.T) * 1.
             P += np.eye(*P.shape) * eps
             q = -np.ones((m, 1)).reshape((m,))
             G = -np.eye(m)
@@ -43,9 +45,21 @@ class Model:
             h = np.zeros(m).reshape((m,))
             A = y.reshape(1, -1)
             b = np.zeros(1)
-            alphas = qpsolvers.solve_qp(P, q, G, h, A, b, solver=optimizer)
-            w = np.matmul(alphas, X_dash)
-            self.w = w
+
+            gc.collect()
+            with Capturing() as output:
+                alphas = qpsolvers.solve_qp(P, q, G, h, A, b, solver=optimizer, verbose=True)
+
+            solve_succeeded, result_df = process_output(output)
+
+            if solve_succeeded:
+                w = np.matmul(alphas, X_dash)
+                self.w = w
+                return result_df
+            else:
+                print("Solve process failed.")
+                print(f"Reason: \"{output[-1]}\"")
+                return result_df
         elif issubclass(optimizer, Optimizer):
             opt = optimizer()
             opt.optimize(self, X, y)
@@ -78,7 +92,7 @@ class Model:
 
 if __name__ == "__main__":
     X, y = datasets.make_blobs(
-        n_samples=1000,  cluster_std=12, centers=2, n_features=5000)
+        n_samples=1000, cluster_std=12, centers=2, n_features=5000)
     y[y == 0] = -1
     X_train, X_test, y_train, y_test = train_test_split(X, y)
     for optimizer in OPTIMIZERS:
@@ -86,7 +100,7 @@ if __name__ == "__main__":
             m = Model()
             start = time()
             m.fit(X_train, y_train, optimizer=optimizer)
-            print("#"*40, f"Optimizer: {optimizer}", accuracy_score(
-                m.predict(X_test), y_test), f"Czas: {time()-start}", "", sep="\n")
+            print("#" * 40, f"Optimizer: {optimizer}", accuracy_score(
+                m.predict(X_test), y_test), f"Czas: {time() - start}", "", sep="\n")
         except (DCPError, ValueError):
-            print("#"*40, f"Optimizer: {optimizer}", "Błąd", "", sep="\n")
+            print("#" * 40, f"Optimizer: {optimizer}", "Błąd", "", sep="\n")
