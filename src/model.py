@@ -1,4 +1,4 @@
-from time import time
+from time import time, sleep
 
 import numpy as np
 import qpsolvers
@@ -13,7 +13,12 @@ import gc
 
 from utils import Capturing, process_output
 
-OPTIMIZERS = [DCDM, 'cvxpy', 'cvxopt', 'quadprog']
+OPTIMIZERS = [
+    DCDM,
+    'cvxpy',
+    'cvxopt',
+    'quadprog'
+]
 
 
 class Model:
@@ -50,19 +55,18 @@ class Model:
             with Capturing() as output:
                 alphas = qpsolvers.solve_qp(P, q, G, h, A, b, solver=optimizer, verbose=True)
 
-            solve_succeeded, result_df = process_output(output)
+            result, result_df = process_output(output, optimizer)
 
-            if solve_succeeded:
+            if result:
                 w = np.matmul(alphas, X_dash)
                 self.w = w
-                return result_df
             else:
                 print("Solve process failed.")
-                print(f"Reason: \"{output[-1]}\"")
-                return result_df
+            return result, result_df
         elif issubclass(optimizer, Optimizer):
             opt = optimizer()
             opt.optimize(self, X, y)
+            return "result_placeholder", "partial_results_df_placerolder"
         else:
             raise ValueError(f'Optimizer {optimizer} is not recognized')
 
@@ -96,11 +100,13 @@ if __name__ == "__main__":
     y[y == 0] = -1
     X_train, X_test, y_train, y_test = train_test_split(X, y)
     for optimizer in OPTIMIZERS:
+        print("#" * 40, f"Optimizer: {optimizer}", sep="\n")
         try:
             m = Model()
             start = time()
-            m.fit(X_train, y_train, optimizer=optimizer)
-            print("#" * 40, f"Optimizer: {optimizer}", accuracy_score(
-                m.predict(X_test), y_test), f"Czas: {time() - start}", "", sep="\n")
-        except (DCPError, ValueError):
-            print("#" * 40, f"Optimizer: {optimizer}", "Błąd", "", sep="\n")
+            result, result_df = m.fit(X_train, y_train, optimizer=optimizer)
+            print(f'Solved: {result}')
+            print(result_df)
+            print(f'Accuracy: {accuracy_score(m.predict(X_test), y_test)}', f"Czas: {time() - start}", "", sep="\n")
+        except (DCPError, ValueError) as e:
+            print(f"Błąd: {e}", "", sep="\n")
