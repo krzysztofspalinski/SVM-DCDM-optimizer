@@ -16,9 +16,12 @@ class DatasetLoader:
             raise ValueError(f"Dataset does not exist in {self.datasets_folder} folder!")
         file_path = os.path.join(self.datasets_folder, dataset)
         if f'{dataset}.t' in self.all_files:
+            if dataset.startswith('a') and dataset.endswith('a'):
+                n_features = 123
             dataset_dict = process_two_files(
                 file_path,
-                os.path.join(self.datasets_folder, f'{dataset}.t')
+                os.path.join(self.datasets_folder, f'{dataset}.t'),
+                n_features=n_features
             )
         else:
             dataset_dict = process_single_file(file_path)
@@ -57,12 +60,12 @@ def load_datasets() -> dict:
     - features
     """
     datasets = {
-        "a9a": process_two_files('datasets/a9a', 'datasets/a9a.t'),
-        "a8a": process_two_files('datasets/a8a', 'datasets/a8a.t'),
-        "a7a": process_two_files('datasets/a7a', 'datasets/a7a.t'),
-        "a6a": process_two_files('datasets/a6a', 'datasets/a6a.t'),
-        "a5a": process_two_files('datasets/a5a', 'datasets/a5a.t'),
-        "a4a": process_two_files('datasets/a4a', 'datasets/a4a.t'),
+        "a9a": process_two_files('datasets/a9a', 'datasets/a9a.t', n_features=123),
+        "a8a": process_two_files('datasets/a8a', 'datasets/a8a.t', n_features=123),
+        "a7a": process_two_files('datasets/a7a', 'datasets/a7a.t', n_features=123),
+        "a6a": process_two_files('datasets/a6a', 'datasets/a6a.t', n_features=123),
+        "a5a": process_two_files('datasets/a5a', 'datasets/a5a.t', n_features=123),
+        "a4a": process_two_files('datasets/a4a', 'datasets/a4a.t', n_features=123),
         "real-sim": process_single_file('datasets/real-sim'),
         "skin_nonskin": process_single_file('datasets/skin_nonskin'),
         "mushrooms": process_single_file('datasets/mushrooms'),
@@ -72,12 +75,24 @@ def load_datasets() -> dict:
     return datasets
 
 
-def process_two_files(path_train, path_test, info=""):
+def process_two_files(path_train, path_test, n_features=-1, info=""):
     X_train, y_train = load_svmlight_file(path_train)
     X_train = X_train.toarray()
 
+    if X_train.shape[1] < n_features:
+        X_tmp_copy = X_train
+        X_train = np.zeros((X_tmp_copy.shape[0], n_features))
+        X_train[:, :X_tmp_copy.shape[1]] = X_tmp_copy
+        del X_tmp_copy
+
     X_test, y_test = load_svmlight_file(path_test)
     X_test = X_test.toarray()
+
+    if X_test.shape[1] < n_features:
+        X_tmp_copy = X_test
+        X_test = np.zeros((X_tmp_copy.shape[0], n_features))
+        X_test[:, :X_tmp_copy.shape[1]] = X_tmp_copy
+        del X_tmp_copy
 
     dataset = {
         "X_train": X_train,
