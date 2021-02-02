@@ -1,4 +1,5 @@
-from time import time, sleep
+import gc
+from time import sleep, time
 
 import numpy as np
 import qpsolvers
@@ -9,15 +10,25 @@ from sklearn.model_selection import train_test_split
 
 from dcdm import DCDM
 from optimizer import Optimizer
-import gc
-
 from utils import Capturing, process_output
 
 OPTIMIZERS = [
     DCDM,
-    'cvxpy',
-    'cvxopt',
-    'quadprog'
+    # 'cvxopt',
+    # 'ecos', SLOW
+    # 'quadprog', SLOW
+    # 'osqp',
+    # 'cvxpy_GUROBI', SLOW
+    'cvxpy_MOSEK',
+    'cvxpy_SCS',
+    # === 'gurobi', NOT OPTIMAL
+    # === 'mosek', NOT OPTIMAL
+    # === 'cvxpy_CPLEX', NOT AVAILABLE
+    # === 'cvxpy_OSQP', LITTLE DIFFERENCE WITH osqp
+    # === 'cvxpy_ELEMENTAL', NOT AVAILABLE
+    # === 'cvxpy_ECOS', NOT AVAILABLE
+    # === 'cvxpy_ECOS_BB', NOT AVAILABLE
+    # === 'cvxpy_CVXOPT', NOT AVAILABLE
 ]
 
 
@@ -38,7 +49,7 @@ class Model:
 
     def fit(self, X, y, optimizer=DCDM):
         if type(optimizer) == str:
-            eps = 1e-10
+            eps = 1e-5
             m, n = X.shape
             y = y.reshape(-1, 1) * 1.
             X_dash = y * X
@@ -52,21 +63,31 @@ class Model:
             b = np.zeros(1)
 
             gc.collect()
+            start = time()
             with Capturing() as output:
-                alphas = qpsolvers.solve_qp(P, q, G, h, A, b, solver=optimizer, verbose=True)
+                if optimizer.startswith('cvxpy_'):
+                    alphas = qpsolvers.cvxpy_solve_qp(
+                        P, q, G, h, A, b, solver=optimizer[6:], verbose=True)
+                else:
+                    alphas = qpsolvers.solve_qp(
+                        P, q, G, h, A, b, solver=optimizer, verbose=True)
+            runtime1 = time() - start
 
-            result, result_df = process_output(output, optimizer)
-
+            result, result_df, runtime2 = process_output(output, optimizer)
             if result:
                 w = np.matmul(alphas, X_dash)
                 self.w = w
             else:
                 print("Solve process failed.")
-            return result, result_df
+            return result, result_df, runtime2 or runtime1
         elif issubclass(optimizer, Optimizer):
             opt = optimizer()
-            opt.optimize(self, X, y)
-            return "result_placeholder", "partial_results_df_placerolder"
+            start = time()
+            with Capturing() as output:
+                opt.optimize(self, X, y)
+            runtime1 = time() - start
+            result, result_df, runtime2 = process_output(output, optimizer)
+            return result, result_df, runtime2 or runtime1
         else:
             raise ValueError(f'Optimizer {optimizer} is not recognized')
 
@@ -96,17 +117,19 @@ class Model:
 
 if __name__ == "__main__":
     X, y = datasets.make_blobs(
-        n_samples=1000, cluster_std=12, centers=2, n_features=5000)
+        n_samples=5000, cluster_std=2, centers=2, n_features=10)
     y[y == 0] = -1
     X_train, X_test, y_train, y_test = train_test_split(X, y)
     for optimizer in OPTIMIZERS:
         print("#" * 40, f"Optimizer: {optimizer}", sep="\n")
         try:
             m = Model()
-            start = time()
-            result, result_df = m.fit(X_train, y_train, optimizer=optimizer)
+            result, result_df, duration = m.fit(
+                X_train, y_train, optimizer=optimizer)
             print(f'Solved: {result}')
             print(result_df)
-            print(f'Accuracy: {accuracy_score(m.predict(X_test), y_test)}', f"Czas: {time() - start}", "", sep="\n")
+            print(f'Accuracy: {accuracy_score(m.predict(X_test), y_test)}',
+                  f"Czas: {duration}", "", sep="\n")
         except (DCPError, ValueError) as e:
             print(f"Błąd: {e}", "", sep="\n")
+            raise e

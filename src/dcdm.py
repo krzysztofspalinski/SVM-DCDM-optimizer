@@ -17,6 +17,8 @@ class DCDM(Optimizer):
         alpha = np.zeros_like(y, dtype=float)
         iter_no = 0
         loss_history_gain = np.full(5, np.inf)
+        columns = ["iteration", "pcost", "dcost", "pres", "dres"]
+        print(" ".join([f"{c:>12}" for c in columns]))
         while True:
             old_loss = model.compute_loss(X, y)
             for i in np.random.permutation(range(len(alpha))):
@@ -36,6 +38,8 @@ class DCDM(Optimizer):
                                 y[i] * X[i].T).reshape(-1, 1)
             new_loss = model.compute_loss(X, y)
             loss_history_gain[iter_no % 5] = np.abs(old_loss - new_loss)
+            values = [iter_no, "na", "na", "na", "na"]
+            print(" ".join([f"{v:>12}" for v in values]))
             if np.std(loss_history_gain)/np.max(loss_history_gain+eps) < eps:
                 return
             else:
