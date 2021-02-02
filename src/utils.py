@@ -1,5 +1,6 @@
-from io import StringIO
 import sys
+from io import StringIO
+
 import pandas as pd
 
 
@@ -19,10 +20,12 @@ def process_output(output: str, optimizer) -> (bool, pd.DataFrame):
 
     if optimizer == 'cvxopt':
         return process_output_cvxopt(output)
-    if optimizer == 'cvxpy':
+    elif optimizer == 'cvxpy':
         return process_output_cvxpy(output)
-    if optimizer == 'quadprog':
+    elif optimizer == 'quadprog':
         return "unknown", "No result dataframe"
+    else:
+        return "unknown", "\n".join(output)
 
 
 def process_output_cvxopt(output):
@@ -33,7 +36,8 @@ def process_output_cvxopt(output):
         result = True
         output = output[1:]
 
-    output = "\n".join([f"{row}".strip() for row in output]).replace(':', " ").replace('  ', ' ').replace(' ', ',')
+    output = "\n".join([f"{row}".strip() for row in output]).replace(
+        ':', " ").replace('  ', ' ').replace(' ', ',')
     df = pd.read_csv(StringIO(output), header=None, sep=',')
     df.columns = ['iteration', 'pcost', 'dcost', 'gap', 'pres', 'dres']
     return result, df
@@ -41,7 +45,8 @@ def process_output_cvxopt(output):
 
 def process_output_cvxpy(output):
     start_idx = [output.index(a) for a in output if a.startswith('iter')][0]
-    end_idx = [output.index(a) for a in output if a.startswith('status:')][0] - 1
+    end_idx = [output.index(a)
+               for a in output if a.startswith('status:')][0] - 1
 
     if output[end_idx + 1].endswith('solved'):
         result = True
@@ -67,6 +72,6 @@ def process_output_cvxpy(output):
         'time': 'float'
     }
 
-    df = pd.read_csv(StringIO(output), sep=' ', skiprows=1, header=None, names=headers, dtype=dtypes)
+    df = pd.read_csv(StringIO(output), sep=' ', skiprows=1,
+                     header=None, names=headers, dtype=dtypes)
     return result, df
-
