@@ -9,7 +9,7 @@ class DCDM(Optimizer):
     def __init__(self):
         pass
 
-    def optimize(self, model, X, y, eps=5*10**-1):
+    def optimize(self, model, X, y, P, q, eps=5*10**-1):
         if model.w is None:
             model._Model__initialize_parameters(X.shape[1])
         U = model.C

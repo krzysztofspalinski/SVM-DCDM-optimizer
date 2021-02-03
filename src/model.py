@@ -22,7 +22,7 @@ OPTIMIZERS = [
     'cvxpy_MOSEK',
     'cvxpy_SCS',
     # === 'gurobi', NOT OPTIMAL
-    # === 'mosek', NOT OPTIMAL
+    # === 'mosek',  # NOT OPTIMAL
     # === 'cvxpy_CPLEX', NOT AVAILABLE
     # === 'cvxpy_OSQP', LITTLE DIFFERENCE WITH osqp
     # === 'cvxpy_ELEMENTAL', NOT AVAILABLE
@@ -49,7 +49,7 @@ class Model:
 
     def fit(self, X, y, optimizer=DCDM):
         if type(optimizer) == str:
-            eps = 1e-10
+            eps = 1e-5
             m, n = X.shape
             y = y.reshape(-1, 1) * 1.
             X_dash = y * X
@@ -81,7 +81,7 @@ class Model:
                 print("Solve process failed.")
             return result, result_df, runtime2 or runtime1
         elif issubclass(optimizer, Optimizer):
-            eps = 1e-10
+            eps = 1e-5
             m, n = X.shape
             X_dash = y.reshape(-1, 1) * X
             P = np.dot(X_dash, X_dash.T) * 1.
