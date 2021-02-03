@@ -49,32 +49,6 @@ class DatasetLoader:
             )
 
 
-def load_datasets() -> dict:
-    """
-    Loads datasets ready for analysis.
-    Each key in dict is a dict with dataset and has following properties
-    - X_train, y_train
-    - X_test, y_test
-    - info
-    - observations
-    - features
-    """
-    datasets = {
-        "a9a": process_two_files('datasets/a9a', 'datasets/a9a.t', n_features=123),
-        "a8a": process_two_files('datasets/a8a', 'datasets/a8a.t', n_features=123),
-        "a7a": process_two_files('datasets/a7a', 'datasets/a7a.t', n_features=123),
-        "a6a": process_two_files('datasets/a6a', 'datasets/a6a.t', n_features=123),
-        "a5a": process_two_files('datasets/a5a', 'datasets/a5a.t', n_features=123),
-        "a4a": process_two_files('datasets/a4a', 'datasets/a4a.t', n_features=123),
-        "real-sim": process_single_file('datasets/real-sim'),
-        "skin_nonskin": process_single_file('datasets/skin_nonskin'),
-        "mushrooms": process_single_file('datasets/mushrooms'),
-        "australian": process_single_file('datasets/australian_scale'),
-        "phishing": process_single_file('datasets/phishing')
-    }
-    return datasets
-
-
 def process_two_files(path_train, path_test, n_features=-1, info=""):
     X_train, y_train = load_svmlight_file(path_train)
     X_train = X_train.toarray()
