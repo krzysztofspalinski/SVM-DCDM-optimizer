@@ -13,14 +13,14 @@ from optimizer import Optimizer
 from utils import Capturing, process_output
 
 OPTIMIZERS = [
-    DCDM,
-    # 'cvxopt',
-    # 'ecos', SLOW
+    # DCDM,
+    'cvxopt',
+    # 'ecos',  # SLOW
     # 'quadprog', SLOW
     # 'osqp',
     # 'cvxpy_GUROBI', SLOW
-    'cvxpy_MOSEK',
-    'cvxpy_SCS',
+    # 'cvxpy_MOSEK',
+    # 'cvxpy_SCS',
     # === 'gurobi', NOT OPTIMAL
     # === 'mosek',  # NOT OPTIMAL
     # === 'cvxpy_CPLEX', NOT AVAILABLE
@@ -47,7 +47,7 @@ class Model:
         y_hat[y_hat_proba <= 0] = -1
         return y_hat.ravel()
 
-    def fit(self, X, y, optimizer=DCDM):
+    def fit(self, X, y, optimizer=DCDM, C=10):
         if type(optimizer) == str:
             eps = 1e-5
             m, n = X.shape
@@ -56,9 +56,9 @@ class Model:
             P = np.dot(X_dash, X_dash.T) * 1.
             P += np.eye(*P.shape) * eps
             q = -np.ones((m, 1)).reshape((m,))
-            G = -np.eye(m)
+            G = np.vstack((-np.eye(m), np.eye(m)))
             G += np.eye(*G.shape) * eps
-            h = np.zeros(m).reshape((m,))
+            h = np.hstack((np.zeros(m), np.ones(m) * C)).reshape((2*m,))
             A = y.reshape(1, -1)
             b = np.zeros(1)
 
@@ -127,7 +127,7 @@ class Model:
 
 if __name__ == "__main__":
     X, y = datasets.make_blobs(
-        n_samples=100, cluster_std=2, centers=2, n_features=500)
+        n_samples=2000, cluster_std=2, centers=2, n_features=500)
     y[y == 0] = -1
     X_train, X_test, y_train, y_test = train_test_split(X, y)
     for optimizer in OPTIMIZERS:
