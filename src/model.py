@@ -49,7 +49,7 @@ class Model:
 
     def fit(self, X, y, optimizer=DCDM):
         if type(optimizer) == str:
-            eps = 1e-5
+            eps = 1e-10
             m, n = X.shape
             y = y.reshape(-1, 1) * 1.
             X_dash = y * X
@@ -81,10 +81,16 @@ class Model:
                 print("Solve process failed.")
             return result, result_df, runtime2 or runtime1
         elif issubclass(optimizer, Optimizer):
+            eps = 1e-10
+            m, n = X.shape
+            X_dash = y.reshape(-1, 1) * X
+            P = np.dot(X_dash, X_dash.T) * 1.
+            P += np.eye(*P.shape) * eps
+            q = -np.ones((m, 1)).reshape((m,))
             opt = optimizer()
             start = time()
             with Capturing() as output:
-                opt.optimize(self, X, y)
+                opt.optimize(self, X, y, P, q)
             runtime1 = time() - start
             result, result_df, runtime2 = process_output(output, optimizer)
             return result, result_df, runtime2 or runtime1
@@ -96,6 +102,10 @@ class Model:
         gradient = np.zeros_like(loss)
         gradient[loss < 0] = -1
         return gradient
+
+    def compute_obj_primal(self, alphas, P, q):
+        val = (1/2) * alphas.T @ P @ alphas + q.T @ alphas
+        return val.item()
 
     def compute_loss(self, X, y):
         loss = np.sum(np.maximum(
@@ -117,7 +127,7 @@ class Model:
 
 if __name__ == "__main__":
     X, y = datasets.make_blobs(
-        n_samples=5000, cluster_std=2, centers=2, n_features=10)
+        n_samples=100, cluster_std=2, centers=2, n_features=500)
     y[y == 0] = -1
     X_train, X_test, y_train, y_test = train_test_split(X, y)
     for optimizer in OPTIMIZERS:
